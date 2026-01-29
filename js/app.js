@@ -1,7 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
 
   // --- CONFIGURAÇÕES ---
-  const SENHA_CORRETA = "1234";
+  const SENHA_CORRETA = "168945";
   const TEMPO_TOTAL_VIAGEM_HORAS = 6;
 
   // Coordenadas de Referência (Montes Claros -> Maringá)
