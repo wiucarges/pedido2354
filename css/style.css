@@ -1,0 +1,78 @@
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  overflow: hidden; /* Evita barras de rolagem indesejadas */
+}
+
+/* O Mapa ocupa a tela toda */
+#map {
+  height: 100vh;
+  width: 100%;
+  z-index: 1;
+}
+
+/* --- Card flutuante (Estilo iFood/Uber) --- */
+.delivery-info {
+  position: absolute;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 90%;
+  max-width: 400px;
+  background: white;
+  padding: 20px;
+  border-radius: 15px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+  z-index: 1000; /* Garante que fique acima do mapa */
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  transition: transform 0.3s ease;
+}
+
+/* Avatar do Motorista */
+.driver-avatar {
+  width: 50px;
+  height: 50px;
+  background-color: #eee;
+  border-radius: 50%;
+  /* Avatar gerado via API para teste */
+  background-image: url('https://ui-avatars.com/api/?name=Motorista&background=0D8ABC&color=fff');
+  background-size: cover;
+}
+
+/* Textos do Card */
+.info-text h3 {
+  margin: 0;
+  font-size: 16px;
+  color: #333;
+  font-weight: 600;
+}
+
+.info-text p {
+  margin: 5px 0 0;
+  font-size: 13px;
+  color: #666;
+}
+
+.status-badge {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  margin-top: 5px;
+  display: inline-block;
+}
+
+/* --- Marcadores do Mapa --- */
+.car-icon {
+  font-size: 30px;
+  line-height: 30px;
+  text-align: center;
+  /* A transição suave é crucial para o efeito de movimento contínuo */
+  transition: all 0.1s linear;
+  cursor: grab;
+}
