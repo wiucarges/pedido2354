@@ -1,28 +1,18 @@
-// Aguarda o HTML carregar completamente antes de rodar o script
 document.addEventListener('DOMContentLoaded', () => {
 
   // --- CONFIGURAÇÕES ---
   const SENHA_CORRETA = "1234";
   const TEMPO_TOTAL_VIAGEM_HORAS = 6;
 
-  // --- ROTA (Montes Claros -> Maringá) ---
-  const fullRoute = [
-    [-16.7350, -43.8750], // Montes Claros
-    [-17.2000, -44.4000],
-    [-18.5122, -44.5550],
-    [-19.4658, -44.2467],
-    [-19.9600, -44.0300], // BH
-    [-20.8000, -44.8000],
-    [-22.2000, -45.9000],
-    [-22.9000, -47.0000], // Campinas
-    [-23.8000, -48.0000],
-    [-24.9500, -49.0000],
-    [-23.4200, -51.9330]  // Maringá
-  ];
+  // Coordenadas de Referência (Montes Claros -> Maringá)
+  // OSRM usa Longitude,Latitude. O Leaflet usa Latitude,Longitude.
+  const startCoords = [-43.8750, -16.7350]; // Long, Lat
+  const endCoords = [-51.9330, -23.4200];   // Long, Lat
 
   let map, polyline, carMarker;
+  let fullRoute = []; // Será preenchido pela API
 
-  // --- VINCULA O BOTÃO (A CORREÇÃO DO ERRO ESTÁ AQUI) ---
+  // --- VINCULA O BOTÃO ---
   const btnLogin = document.getElementById('btn-login');
   if (btnLogin) {
     btnLogin.addEventListener('click', verificarCodigo);
@@ -37,28 +27,55 @@ document.addEventListener('DOMContentLoaded', () => {
     const infoCard = document.getElementById('info-card');
 
     if (input.value === SENHA_CORRETA) {
-      // Lógica de Persistência
       if (!localStorage.getItem('inicioViagem')) {
         localStorage.setItem('inicioViagem', Date.now());
       }
 
-      // Esconde Login e Mostra Mapa
-      overlay.style.display = 'none';
-      infoCard.style.display = 'flex'; // Exibe o card que estava oculto
+      // Mostra carregando enquanto busca a rota
+      const btn = document.getElementById('btn-login');
+      btn.innerText = "Carregando rota...";
+      btn.disabled = true;
 
-      iniciarMapa();
+      // Busca a rota real na estrada
+      buscarRotaReal().then(() => {
+        overlay.style.display = 'none';
+        infoCard.style.display = 'flex';
+        iniciarMapa();
+      }).catch(err => {
+        console.error(err);
+        alert("Erro ao carregar a rota. Verifique sua internet.");
+        btn.innerText = "Tentar Novamente";
+        btn.disabled = false;
+      });
+
     } else {
       errorMsg.style.display = 'block';
-      // Animação de erro (opcional)
       input.style.borderColor = 'red';
     }
   }
 
+  // NOVA FUNÇÃO: Busca o desenho da estrada via API OSRM
+  async function buscarRotaReal() {
+    // URL da API pública do OSRM (Gratuita para projetos pequenos)
+    const url = `https://router.project-osrm.org/route/v1/driving/${startCoords[0]},${startCoords[1]};${endCoords[0]},${endCoords[1]}?overview=full&geometries=geojson`;
+
+    const response = await fetch(url);
+    const data = await response.json();
+
+    if (data.routes && data.routes.length > 0) {
+      // A API devolve [Long, Lat], mas o Leaflet precisa de [Lat, Long]
+      // Vamos inverter as coordenadas aqui:
+      fullRoute = data.routes[0].geometry.coordinates.map(coord => [coord[1], coord[0]]);
+    } else {
+      throw new Error("Rota não encontrada");
+    }
+  }
+
   function iniciarMapa() {
-    // Evita reinicializar se já existir
     if (map) return;
 
-    map = L.map('map', { zoomControl: false }).setView(fullRoute[0], 6);
+    // Centraliza no início da rota
+    map = L.map('map', { zoomControl: false }).setView(fullRoute[0], 10);
 
     L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
       attribution: '&copy; CartoDB', maxZoom: 18
@@ -82,10 +99,11 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function atualizarPosicaoTempoReal() {
+    if (fullRoute.length === 0) return;
+
     const inicio = parseInt(localStorage.getItem('inicioViagem'));
     const agora = Date.now();
     const tempoDecorridoMs = agora - inicio;
-    // Dica: Para testes rápidos, diminua o valor abaixo (ex: * 0.01)
     const tempoTotalMs = TEMPO_TOTAL_VIAGEM_HORAS * 60 * 60 * 1000;
 
     let progresso = tempoDecorridoMs / tempoTotalMs;
@@ -108,12 +126,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const posicaoAtual = getCoordenadaPorProgresso(progresso);
 
-    if(carMarker) carMarker.setLatLng(posicaoAtual);
+    if(carMarker) {
+      carMarker.setLatLng(posicaoAtual);
+
+      // Opcional: Faz o mapa seguir o caminhão
+      // map.panTo(posicaoAtual);
+    }
 
     desenharLinhaRestante(posicaoAtual, progresso);
   }
 
   function getCoordenadaPorProgresso(pct) {
+    // Agora fullRoute tem milhares de pontos, então a curva será perfeita
     const totalPontos = fullRoute.length - 1;
     const pontoVirtual = pct * totalPontos;
 
@@ -137,6 +161,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (polyline) map.removeLayer(polyline);
 
     const indexAtual = Math.floor(pct * (fullRoute.length - 1));
+
+    // Desenha apenas do ponto atual até o final
+    // slice pode ser pesado se o array for gigante, mas para <10k pontos é ok em Desktop/Mobile modernos
     const rotaRestante = [posicaoAtual, ...fullRoute.slice(indexAtual + 1)];
 
     polyline = L.polyline(rotaRestante, {
@@ -146,5 +173,4 @@ document.addEventListener('DOMContentLoaded', () => {
       dashArray: '10, 10'
     }).addTo(map);
   }
-
 });
